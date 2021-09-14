@@ -43,10 +43,16 @@ class Field:
         #   Pawns
         for j in range(8):
             self.cells_list[6][j].set_figure(Pawn(6, j, True, self.game))
+        # Castles
+        self.cells_list[7][0].set_figure(Castle(7, 0, True, self.game))
+        self.cells_list[7][7].set_figure(Castle(7, 7, True, self.game))
 
         # Black
         #   Pawns
         for j in range(8):
             self.cells_list[1][j].set_figure(Pawn(1, j, False, self.game))
+        # Castles
+        self.cells_list[0][0].set_figure(Castle(0, 0, False, self.game))
+        self.cells_list[0][7].set_figure(Castle(0, 7, False, self.game))
 
         self.cells_list[4][1].set_figure(Pawn(4, 1, False, self.game))

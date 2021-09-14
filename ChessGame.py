@@ -2,7 +2,7 @@ from Field import *
 from Player import *
 
 
-# Основной класс игры, содержит всю информацию о состоянии
+# Основной класс игры, содержит всю информацию о её состоянии
 class Game:
     def __init__(self):
         self.moves_count = 1
@@ -21,7 +21,8 @@ class Game:
                f"Player Black Score: {self.player_black.score}\n" \
                f"Moves History: {self.moves_history}\n" \
                f"Current Player: {self.current_player}\n" \
-               f"Chosen Figure: {self.chosen_figure}\n"
+               f"Chosen Figure: {self.chosen_figure}\n" \
+               f"{self.field}\n"
         return info
 
     def start(self):
@@ -57,9 +58,12 @@ class Game:
                                        [self.chosen_figure.x, self.chosen_figure.y], [x, y])
 
                 # Move actions:
-                # Check if any figure is taken
+                # Check if any figure is taken and give scores to the Current Player
                 if self.field.cells_list[x][y].figure:
                     self.current_player.add_score(self.field.cells_list[x][y].figure.name)
+
+                # Simple move to available cell
+                self.field.cells_list[x][y].set_figure(self.chosen_figure)
 
                 # Check for "En Passant" attack (взятие пешкой на проходе)
                 if isinstance(self.chosen_figure, Pawn):
@@ -77,9 +81,6 @@ class Game:
                             # Delete En Passant attacked pawn
                             self.field.cells_list[last_move[3][0]][last_move[3][1]].figure = None
 
-                # Simple move to available cell
-                self.field.cells_list[x][y].set_figure(self.chosen_figure)
-
                 # Delete actions:
                 self.field.cells_list[self.chosen_figure.x][self.chosen_figure.y].figure = None
                 # Change new coordinates
@@ -96,8 +97,10 @@ class Game:
 
                 # Save movement to history
                 self.set_move_to_history(move_history_record)
+                return True
             else:
                 self.choose_figure(x, y)
+        return False
 
 
 if __name__ == "__main__":

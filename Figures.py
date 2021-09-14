@@ -16,6 +16,9 @@ class Figure:
         color = "white" if self.is_white else "black"
         return f"{self.name}_{color}"
 
+    def get_available_cells(self):
+        pass
+
 
 # Пешка
 class Pawn(Figure):
@@ -76,3 +79,76 @@ class Pawn(Figure):
             if last_move[0] == "pawn" and abs(last_move[3][0] - last_move[2][0]) == 2 and \
                     last_move[3][0] == self.x and abs(last_move[3][1] - self.y) == 1:
                 available_cells.append([self.x + adder, last_move[3][1]])
+
+
+# Ладья
+class Castle(Figure):
+    def __init__(self, x, y, is_white, game):
+        super().__init__(x, y, is_white, game)
+        self.name = "castle"
+
+    def __str__(self):
+        return self.name
+
+    def get_available_cells(self):
+        available_cells = []
+        cells_list = self.game.field.cells_list
+        x, y = (self.x, self.y)
+
+        # Ячейки справа
+        while y < 7:
+            y += 1
+            if not cells_list[x][y].figure:
+                available_cells.append([x, y])
+            elif cells_list[x][y].figure.is_white != self.is_white:
+                available_cells.append([x, y])
+                x, y = (self.x, self.y)
+                break
+            else:
+                x, y = (self.x, self.y)
+                break
+        x, y = (self.x, self.y)
+
+        # Ячейки слева
+        while y > 0:
+            y -= 1
+            if not cells_list[x][y].figure:
+                available_cells.append([x, y])
+            elif cells_list[x][y].figure.is_white != self.is_white:
+                available_cells.append([x, y])
+                x, y = (self.x, self.y)
+                break
+            else:
+                x, y = (self.x, self.y)
+                break
+        x, y = (self.x, self.y)
+
+        # Ячейки сверху
+        while x > 0:
+            x -= 1
+            if not cells_list[x][y].figure:
+                available_cells.append([x, y])
+            elif cells_list[x][y].figure.is_white != self.is_white:
+                available_cells.append([x, y])
+                x, y = (self.x, self.y)
+                break
+            else:
+                x, y = (self.x, self.y)
+                break
+        x, y = (self.x, self.y)
+
+        # Ячейки сверху
+        while x < 7:
+            x += 1
+            if not cells_list[x][y].figure:
+                available_cells.append([x, y])
+            elif cells_list[x][y].figure.is_white != self.is_white:
+                available_cells.append([x, y])
+                x, y = (self.x, self.y)
+                break
+            else:
+                x, y = (self.x, self.y)
+                break
+        x, y = (self.x, self.y)
+
+        return available_cells
