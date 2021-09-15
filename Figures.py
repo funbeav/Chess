@@ -20,6 +20,35 @@ class Figure:
     def get_available_cells(self):
         pass
 
+    def get_available_cells_by_side_operations(self, side_operations):
+        available_cells = []
+        ops = {
+            ">": operator.gt,
+            "<": operator.lt,
+            "==": operator.eq
+        }
+        cells_list = self.game.field.cells_list
+        for operation in side_operations:
+            x_curr = operation[0]
+            x_op = ops[operation[1]]
+            x_till = operation[2]
+            y_curr = operation[3]
+            y_op = ops[operation[4]]
+            y_till = operation[5]
+            x_adder = operation[6]
+            y_adder = operation[7]
+            while x_op(x_curr, x_till) and y_op(y_curr, y_till):
+                x_curr += x_adder
+                y_curr += y_adder
+                if not cells_list[x_curr][y_curr].figure:
+                    available_cells.append([x_curr, y_curr])
+                elif cells_list[x_curr][y_curr].figure.is_white != self.is_white:
+                    available_cells.append([x_curr, y_curr])
+                    break
+                else:
+                    break
+        return available_cells
+
 
 # Пешка
 class Pawn(Figure):
@@ -92,45 +121,13 @@ class Castle(Figure):
         return self.name
 
     def get_available_cells(self):
-        ops = {
-            ">": operator.gt,
-            "<": operator.lt,
-            "==": operator.eq
-        }
-
-        available_cells = []
-        x, y = (self.x, self.y)
-        cells_list = self.game.field.cells_list
-
-        # (x, x_op, x_till, y, y_op, y_till, x_adder, y_adder)
         side_operations = [
-            (x, "==", x, y, "<", 7, 0, 1),  # Ячейки справа
-            (x, "==", x, y, ">", 0, 0, -1),  # Ячейки слева
-            (x, ">", 0, y, "==", y, -1, 0),  # Ячейки сверху
-            (x, "<", 7, y, "==", y, 1, 0)  # Ячейки снизу
+            (self.x, "==", self.x, self.y, "<", 7, 0, 1),  # Ячейки справа
+            (self.x, "==", self.x, self.y, ">", 0, 0, -1),  # Ячейки слева
+            (self.x, ">", 0, self.y, "==", self.y, -1, 0),  # Ячейки сверху
+            (self.x, "<", 7, self.y, "==", self.y, 1, 0)  # Ячейки снизу
         ]
-
-        for operation in side_operations:
-            x_curr = operation[0]
-            x_op = ops[operation[1]]
-            x_till = operation[2]
-            y_curr = operation[3]
-            y_op = ops[operation[4]]
-            y_till = operation[5]
-            x_adder = operation[6]
-            y_adder = operation[7]
-
-            while x_op(x_curr, x_till) and y_op(y_curr, y_till):
-                x_curr += x_adder
-                y_curr += y_adder
-                if not cells_list[x_curr][y_curr].figure:
-                    available_cells.append([x_curr, y_curr])
-                elif cells_list[x_curr][y_curr].figure.is_white != self.is_white:
-                    available_cells.append([x_curr, y_curr])
-                    break
-                else:
-                    break
-
+        available_cells = super().get_available_cells_by_side_operations(side_operations)
         return available_cells
 
 
@@ -144,45 +141,13 @@ class Bishop(Figure):
         return self.name
 
     def get_available_cells(self):
-        ops = {
-            ">": operator.gt,
-            "<": operator.lt,
-            "==": operator.eq
-        }
-
-        available_cells = []
-        x, y = (self.x, self.y)
-        cells_list = self.game.field.cells_list
-
-        # (x, x_op, x_till, y, y_op, y_till, x_adder, y_adder)
         side_operations = [
-            (x, ">", 0, y, "<", 7, -1, 1),  # Справа сверху
-            (x, "<", 7, y, "<", 7, 1, 1),  # Справа снизу
-            (x, ">", 0, y, ">", 0, -1, -1),  # Слева сверху
-            (x, "<", 7, y, ">", 0, 1, -1)  # Слева снизу
+            (self.x, ">", 0, self.y, "<", 7, -1, 1),  # Справа сверху
+            (self.x, "<", 7, self.y, "<", 7, 1, 1),  # Справа снизу
+            (self.x, ">", 0, self.y, ">", 0, -1, -1),  # Слева сверху
+            (self.x, "<", 7, self.y, ">", 0, 1, -1)  # Слева снизу
         ]
-
-        for operation in side_operations:
-            x_curr = operation[0]
-            x_op = ops[operation[1]]
-            x_till = operation[2]
-            y_curr = operation[3]
-            y_op = ops[operation[4]]
-            y_till = operation[5]
-            x_adder = operation[6]
-            y_adder = operation[7]
-
-            while x_op(x_curr, x_till) and y_op(y_curr, y_till):
-                x_curr += x_adder
-                y_curr += y_adder
-                if not cells_list[x_curr][y_curr].figure:
-                    available_cells.append([x_curr, y_curr])
-                elif cells_list[x_curr][y_curr].figure.is_white != self.is_white:
-                    available_cells.append([x_curr, y_curr])
-                    break
-                else:
-                    break
-
+        available_cells = super().get_available_cells_by_side_operations(side_operations)
         return available_cells
 
 
@@ -210,7 +175,17 @@ class Queen(Figure):
         return self.name
 
     def get_available_cells(self):
-        available_cells = []
+        side_operations = [
+            (self.x, "==", self.x, self.y, "<", 7, 0, 1),  # Ячейки справа
+            (self.x, "==", self.x, self.y, ">", 0, 0, -1),  # Ячейки слева
+            (self.x, ">", 0, self.y, "==", self.y, -1, 0),  # Ячейки сверху
+            (self.x, "<", 7, self.y, "==", self.y, 1, 0),  # Ячейки снизу
+            (self.x, ">", 0, self.y, "<", 7, -1, 1),  # Справа сверху
+            (self.x, "<", 7, self.y, "<", 7, 1, 1),  # Справа снизу
+            (self.x, ">", 0, self.y, ">", 0, -1, -1),  # Слева сверху
+            (self.x, "<", 7, self.y, ">", 0, 1, -1)  # Слева снизу
+        ]
+        available_cells = super().get_available_cells_by_side_operations(side_operations)
         return available_cells
 
 
