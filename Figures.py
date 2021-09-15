@@ -1,3 +1,4 @@
+import operator
 
 
 # Фигура
@@ -91,64 +92,137 @@ class Castle(Figure):
         return self.name
 
     def get_available_cells(self):
+        ops = {
+            ">": operator.gt,
+            "<": operator.lt,
+            "==": operator.eq
+        }
+
         available_cells = []
+        x, y = (self.x, self.y)
         cells_list = self.game.field.cells_list
-        x, y = (self.x, self.y)
 
-        # Ячейки справа
-        while y < 7:
-            y += 1
-            if not cells_list[x][y].figure:
-                available_cells.append([x, y])
-            elif cells_list[x][y].figure.is_white != self.is_white:
-                available_cells.append([x, y])
-                x, y = (self.x, self.y)
-                break
-            else:
-                x, y = (self.x, self.y)
-                break
-        x, y = (self.x, self.y)
+        # (x, x_op, x_till, y, y_op, y_till, x_adder, y_adder)
+        side_operations = [
+            (x, "==", x, y, "<", 7, 0, 1),  # Ячейки справа
+            (x, "==", x, y, ">", 0, 0, -1),  # Ячейки слева
+            (x, ">", 0, y, "==", y, -1, 0),  # Ячейки сверху
+            (x, "<", 7, y, "==", y, 1, 0)  # Ячейки снизу
+        ]
 
-        # Ячейки слева
-        while y > 0:
-            y -= 1
-            if not cells_list[x][y].figure:
-                available_cells.append([x, y])
-            elif cells_list[x][y].figure.is_white != self.is_white:
-                available_cells.append([x, y])
-                x, y = (self.x, self.y)
-                break
-            else:
-                x, y = (self.x, self.y)
-                break
-        x, y = (self.x, self.y)
+        for operation in side_operations:
+            x_curr = operation[0]
+            x_op = ops[operation[1]]
+            x_till = operation[2]
+            y_curr = operation[3]
+            y_op = ops[operation[4]]
+            y_till = operation[5]
+            x_adder = operation[6]
+            y_adder = operation[7]
 
-        # Ячейки сверху
-        while x > 0:
-            x -= 1
-            if not cells_list[x][y].figure:
-                available_cells.append([x, y])
-            elif cells_list[x][y].figure.is_white != self.is_white:
-                available_cells.append([x, y])
-                x, y = (self.x, self.y)
-                break
-            else:
-                x, y = (self.x, self.y)
-                break
-        x, y = (self.x, self.y)
+            while x_op(x_curr, x_till) and y_op(y_curr, y_till):
+                x_curr += x_adder
+                y_curr += y_adder
+                if not cells_list[x_curr][y_curr].figure:
+                    available_cells.append([x_curr, y_curr])
+                elif cells_list[x_curr][y_curr].figure.is_white != self.is_white:
+                    available_cells.append([x_curr, y_curr])
+                    break
+                else:
+                    break
 
-        # Ячейки сверху
-        while x < 7:
-            x += 1
-            if not cells_list[x][y].figure:
-                available_cells.append([x, y])
-            elif cells_list[x][y].figure.is_white != self.is_white:
-                available_cells.append([x, y])
-                x, y = (self.x, self.y)
-                break
-            else:
-                x, y = (self.x, self.y)
-                break
-        x, y = (self.x, self.y)
+        return available_cells
 
+
+# Слон
+class Bishop(Figure):
+    def __init__(self, x, y, is_white, game):
+        super().__init__(x, y, is_white, game)
+        self.name = "bishop"
+
+    def __str__(self):
+        return self.name
+
+    def get_available_cells(self):
+        ops = {
+            ">": operator.gt,
+            "<": operator.lt,
+            "==": operator.eq
+        }
+
+        available_cells = []
+        x, y = (self.x, self.y)
+        cells_list = self.game.field.cells_list
+
+        # (x, x_op, x_till, y, y_op, y_till, x_adder, y_adder)
+        side_operations = [
+            (x, ">", 0, y, "<", 7, -1, 1),  # Справа сверху
+            (x, "<", 7, y, "<", 7, 1, 1),  # Справа снизу
+            (x, ">", 0, y, ">", 0, -1, -1),  # Слева сверху
+            (x, "<", 7, y, ">", 0, 1, -1)  # Слева снизу
+        ]
+
+        for operation in side_operations:
+            x_curr = operation[0]
+            x_op = ops[operation[1]]
+            x_till = operation[2]
+            y_curr = operation[3]
+            y_op = ops[operation[4]]
+            y_till = operation[5]
+            x_adder = operation[6]
+            y_adder = operation[7]
+
+            while x_op(x_curr, x_till) and y_op(y_curr, y_till):
+                x_curr += x_adder
+                y_curr += y_adder
+                if not cells_list[x_curr][y_curr].figure:
+                    available_cells.append([x_curr, y_curr])
+                elif cells_list[x_curr][y_curr].figure.is_white != self.is_white:
+                    available_cells.append([x_curr, y_curr])
+                    break
+                else:
+                    break
+
+        return available_cells
+
+
+# Конь
+class Knight(Figure):
+    def __init__(self, x, y, is_white, game):
+        super().__init__(x, y, is_white, game)
+        self.name = "knight"
+
+    def __str__(self):
+        return self.name
+
+    def get_available_cells(self):
+        available_cells = []
+        return available_cells
+
+
+# Ферзь
+class Queen(Figure):
+    def __init__(self, x, y, is_white, game):
+        super().__init__(x, y, is_white, game)
+        self.name = "queen"
+
+    def __str__(self):
+        return self.name
+
+    def get_available_cells(self):
+        available_cells = []
+        return available_cells
+
+
+# Король
+class King(Figure):
+    def __init__(self, x, y, is_white, game):
+        super().__init__(x, y, is_white, game)
+        self.name = "king"
+
+    def __str__(self):
+        return self.name
+
+    def get_available_cells(self):
+        available_cells = []
         return available_cells

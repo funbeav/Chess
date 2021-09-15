@@ -46,6 +46,16 @@ class Field:
         # Castles
         self.cells_list[7][0].set_figure(Castle(7, 0, True, self.game))
         self.cells_list[7][7].set_figure(Castle(7, 7, True, self.game))
+        # Knights
+        self.cells_list[7][1].set_figure(Knight(7, 1, True, self.game))
+        self.cells_list[7][6].set_figure(Knight(7, 6, True, self.game))
+        # Bishops
+        self.cells_list[7][2].set_figure(Bishop(7, 2, True, self.game))
+        self.cells_list[7][5].set_figure(Bishop(7, 5, True, self.game))
+        # Queen
+        self.cells_list[7][3].set_figure(Queen(7, 3, True, self.game))
+        # King
+        self.cells_list[7][4].set_figure(King(7, 4, True, self.game))
 
         # Black
         #   Pawns
@@ -54,5 +64,18 @@ class Field:
         # Castles
         self.cells_list[0][0].set_figure(Castle(0, 0, False, self.game))
         self.cells_list[0][7].set_figure(Castle(0, 7, False, self.game))
+        # Knights
+        self.cells_list[0][1].set_figure(Knight(0, 1, False, self.game))
+        self.cells_list[0][6].set_figure(Knight(0, 6, False, self.game))
+        # Bishops
+        self.cells_list[0][2].set_figure(Bishop(0, 2, False, self.game))
+        self.cells_list[0][5].set_figure(Bishop(0, 5, False, self.game))
+        # Queen
+        self.cells_list[0][3].set_figure(Queen(0, 3, False, self.game))
+        # King
+        self.cells_list[0][4].set_figure(King(0, 4, False, self.game))
 
+        # Test
+        self.cells_list[4][3].set_figure(Castle(4, 3, True, self.game))
+        self.cells_list[4][4].set_figure(Bishop(4, 4, True, self.game))
         self.cells_list[4][1].set_figure(Pawn(4, 1, False, self.game))
