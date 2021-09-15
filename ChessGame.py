@@ -15,6 +15,10 @@ class Game:
         self.last_move = tuple()
 
     def __str__(self):
+        if self.chosen_figure:
+            steps_count = self.chosen_figure.steps_count
+        else:
+            steps_count = 0
         info = f"Game #\n" \
                f"Move #{self.moves_count}\n" \
                f"Player White Score: {self.player_white.score}\n" \
@@ -22,7 +26,8 @@ class Game:
                f"Moves History: {self.moves_history}\n" \
                f"Current Player: {self.current_player}\n" \
                f"Chosen Figure: {self.chosen_figure}\n" \
-               f"{self.field}\n"
+               f"Chosen Figure Steps: {steps_count}\n"
+               # f"{self.field}\n"
         return info
 
     def start(self):
@@ -72,10 +77,12 @@ class Game:
                     # через одну клетку (2)
                     # до линии, на которой находится текущая пешка (3)
                     # рядом со столбцом текущей пешки (4)
+                    # текущий ход происходит на столбце предыдущего хода (5)
                     if last_move:
-                        if last_move[0] == "pawn" and abs(last_move[3][0] - last_move[2][0]) == 2 and \
+                        if last_move[0] == "pawn" and \
+                                abs(last_move[3][0] - last_move[2][0]) == 2 and \
                                 last_move[3][0] == self.chosen_figure.x and \
-                                abs(last_move[3][1] - self.chosen_figure.y) == 1:
+                                abs(last_move[3][1] - self.chosen_figure.y) == 1 and last_move[3][1] == y:
                             # Очко Гриффиндору за пешку
                             self.current_player.add_score("pawn")
                             # Delete En Passant attacked pawn
@@ -86,6 +93,7 @@ class Game:
                 # Change new coordinates
                 self.chosen_figure.x = x
                 self.chosen_figure.y = y
+                self.chosen_figure.steps_count += 1
 
                 # New turn
                 self.moves_count += 1

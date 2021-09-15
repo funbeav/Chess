@@ -76,7 +76,17 @@ class Field:
         self.cells_list[0][4].set_figure(King(0, 4, False, self.game))
 
         # Test
+        '''
         self.cells_list[4][2].set_figure(Queen(4, 2, True, self.game))
         self.cells_list[4][3].set_figure(Castle(4, 3, True, self.game))
         self.cells_list[4][4].set_figure(Bishop(4, 4, True, self.game))
         self.cells_list[4][1].set_figure(Pawn(4, 1, False, self.game))
+        self.cells_list[4][5].set_figure(King(4, 5, True, self.game))
+        '''
+        '''
+        # Проверка сквозного доступного хода
+        self.cells_list[2][2].set_figure(Queen(2, 2, False, self.game))
+        self.cells_list[3][3].set_figure(Castle(3, 3, False, self.game))
+        self.cells_list[4][4].set_figure(Bishop(4, 4, False, self.game))
+        self.cells_list[4][3].set_figure(King(4, 3, True, self.game))
+        '''
