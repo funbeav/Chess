@@ -44,6 +44,18 @@ class Game:
     def get_last_move(self):
         return self.last_move
 
+    def is_check(self):
+        cells_list = self.field.cells_list
+        for i in range(8):
+            for j in range(8):
+                if cells_list[i][j].figure:
+                    if isinstance(cells_list[i][j].figure, King) and \
+                       cells_list[i][j].figure.is_white == self.current_player.is_white and \
+                       cells_list[i][j].is_under_attack(self.current_player.is_white):
+                        return True
+        return False
+
+    # Trying to choose figure by checking [x, y] of the chosen cell
     def choose_figure(self, x, y):
         chosen_cell = self.field.cells_list[x][y]
         # Содержит ли ячейка фигуру
@@ -55,6 +67,7 @@ class Game:
         self.chosen_figure = None
         return False
 
+    # Trying to move to coordinates [x, y]
     def move(self, x, y):
         if self.chosen_figure:
             available_cells = self.chosen_figure.get_available_cells()
@@ -88,11 +101,26 @@ class Game:
                             # Delete En Passant attacked pawn
                             self.field.cells_list[last_move[3][0]][last_move[3][1]].figure = None
 
+                # Check for castling move
+                if isinstance(self.chosen_figure, King) and abs(self.chosen_figure.y - y) == 2:
+                    y_castle, y_adder = (7, 1) if y > self.chosen_figure.y else (0, -1)
+                    castle = self.field.cells_list[self.chosen_figure.x][y_castle].figure
+                    # Place the Castle nearby the King
+                    self.field.cells_list[self.chosen_figure.x][self.chosen_figure.y + y_adder].set_figure(castle)
+                    # Clear the previous Castle cell
+                    self.field.cells_list[self.chosen_figure.x][y_castle].figure = None
+                    # Change the Castle coordinates
+                    castle.x = self.chosen_figure.x
+                    castle.y = self.chosen_figure.y + y_adder
+
                 # Delete actions:
                 self.field.cells_list[self.chosen_figure.x][self.chosen_figure.y].figure = None
+
                 # Change new coordinates
                 self.chosen_figure.x = x
                 self.chosen_figure.y = y
+
+                # Add step count to the figure
                 self.chosen_figure.steps_count += 1
 
                 # New turn

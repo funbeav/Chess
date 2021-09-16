@@ -1,4 +1,11 @@
 import operator
+from copy import deepcopy
+
+ops = {
+    ">": operator.gt,
+    "<": operator.lt,
+    "==": operator.eq
+}
 
 
 # Фигура
@@ -21,6 +28,23 @@ class Figure:
     def get_available_cells(self):
         return []
 
+    def get_steps_to_prevent_check(self, old_cells):
+        available_cells = []
+        # Если произошёл Шах, доступны лишь те ходы, которые избавят от Шаха
+        for old_cell in old_cells:
+            # Создаём копию игры, в которой проверяем, "спасут" ли ходы от шаха
+            var_game = deepcopy(self.game)
+            # Перенос фигуры в тестовой игре
+            var_game.field.cells_list[old_cell[0]][old_cell[1]].figure = var_game.chosen_figure
+            var_game.field.cells_list[var_game.chosen_figure.x][var_game.chosen_figure.y].figure = None
+            var_game.chosen_figure.x = old_cell[0]
+            var_game.chosen_figure.y = old_cell[1]
+            # Привёл ли он к шаху
+            if not var_game.is_check():
+                available_cells.append(old_cell)
+            del var_game
+        return available_cells
+
     # Универсальный поиск доступных ходов / атак для фигур с цикличным проходом клеток (Ладья, Слон, Ферзь)
     # Принимает на вход список (list) из последовательностей (tuple) инструкций, как именно организовывать цикл
     # [(переменная_x, сравнение_x_со_следующим_значением, с_чем_сравнить_х,
@@ -29,11 +53,6 @@ class Figure:
     def get_available_cells_by_side_operations(self, side_operations):
         available_cells = []
         cells_list = self.game.field.cells_list
-        ops = {
-            ">": operator.gt,
-            "<": operator.lt,
-            "==": operator.eq
-        }
 
         # Проход каждой инструкции
         for operation in side_operations:
@@ -50,35 +69,21 @@ class Figure:
             while x_op(x_curr, x_till) and y_op(y_curr, y_till):
                 x_curr += x_adder
                 y_curr += y_adder
-
                 # Пустая ячейка - доступный ход
                 if not cells_list[x_curr][y_curr].figure:
                     available_cells.append([x_curr, y_curr])
-
-                # В ячейке находится фигура
+                # В ячейке находится вражеская фигура
                 elif cells_list[x_curr][y_curr].figure.is_white != self.is_white:
-                    # Просчёт доступного хода, если текущий ход - вражеский, а его король под шахом
-                    # * Сработает только при вызове данного метода во время вражеского просчёта доступного хода
-                    # (В данном случае вр. король игнорируется, и доступными ячейками считаются и те, что позади него)
-                    if self.game.current_player.is_white != self.is_white and \
-                            isinstance(cells_list[x_curr][y_curr].figure, King):
-                        pass
-                    # Обычный ход. Вр. фигура доступна для атаки, и на ней прерывается цикл прохода доступных клеток
-                    else:
-                        available_cells.append([x_curr, y_curr])
-                        break
-
-                # Просчёт доступной атаки, если текущий ход - вражеский
-                # * Сработает только при вызове данного метода во время вражеского просчёта доступного хода
-                # (Здесь если цикл упирается в союзную фигуру, она считается потенциально доступной для атаки)
-                elif self.game.current_player.is_white != self.is_white and \
-                        cells_list[x_curr][y_curr].figure.is_white == self.is_white:
                     available_cells.append([x_curr, y_curr])
                     break
-
-                # Если ни одно из условий выше не сработало - прерываем цикл по поиску доступных ходов / атак
+                # Союзная фигура
+                elif cells_list[x_curr][y_curr].figure.is_white == self.is_white:
+                    break
                 else:
                     break
+        # Исключить ходы, ведушие к мату
+        if self.game.current_player.is_white == self.is_white:
+            available_cells = self.get_steps_to_prevent_check(available_cells)
         return available_cells
 
 
@@ -96,6 +101,9 @@ class Pawn(Figure):
         available_cells = []
         available_cells.extend(self.get_steps())
         available_cells.extend(self.get_attacks())
+        # Исключить ходы, ведушие к мату
+        if self.game.current_player.is_white == self.is_white:
+            available_cells = self.get_steps_to_prevent_check(available_cells)
         return available_cells
 
     # Доступные шаги
@@ -134,11 +142,6 @@ class Pawn(Figure):
                 if cells_list[self.x + adder][side_y].figure:
                     if cells_list[self.x + adder][side_y].figure.is_white != self.is_white:
                         available_cells.append([self.x + adder, side_y])
-                # Просчёт доступной атаки, если текущий ход - вражеский
-                # * Сработает только при вызове данного метода во время вражеского просчёта доступного хода
-                # (Здесь для потенциальной атаки сгодятся обе боковые клетки около пешки)
-                if self.game.current_player.is_white != self.is_white:
-                    available_cells.append([self.x + adder, side_y])
 
         # En Passant attack (взятие на проходе)
         last_move = self.game.get_last_move()
@@ -221,11 +224,10 @@ class Knight(Figure):
                 if cells_list[x][y].figure:
                     if cells_list[x][y].figure.is_white != self.is_white:
                         available_cells.append([x, y])
-                    # Просчёт доступной атаки, если текущий ход - вражеский
-                    elif cells_list[x][y].figure.is_white == self.is_white and \
-                            self.game.current_player.is_white != self.is_white:
-                        available_cells.append([x, y])
             x, y = (self.x, self.y)
+        # Исключить ходы, ведушие к мату
+        if self.game.current_player.is_white == self.is_white:
+            available_cells = self.get_steps_to_prevent_check(available_cells)
         return available_cells
 
 
@@ -270,31 +272,45 @@ class King(Figure):
                 if 0 <= i < 8 and 0 <= j < 8:
                     if not cells_list[i][j].figure:
                         available_cells.append([i, j])
-                    # Вражеская фигура
                     if cells_list[i][j].figure:
+                        # Вражеская фигура
                         if cells_list[i][j].figure.is_white != self.is_white:
                             available_cells.append([i, j])
-                    # Просчёт доступной атаки, если текущий ход - вражеский
-                    if self.game.current_player.is_white != self.is_white:
-                        available_cells.append([i, j])
+
         if self.game.current_player.is_white == self.is_white:
-            self.delete_unavailable_cells(available_cells, cells_list)
+            # Рокировка (castling)
+            # Король не ходил ни разу, король не находится под шахом
+            if self.steps_count == 0 and not cells_list[self.x][self.y].is_under_attack(self.is_white):
+                # (y_ладьи, тип_сравнение_с_y_короля, множитель_сумматор)
+                castle_operations = [
+                    (7, "<", 1),     # Short (O-O)
+                    (0, ">", -1)     # Long (O-O-O)
+                ]
+
+                for operation in castle_operations:
+                    y_castle = operation[0]
+                    op_func = ops[operation[1]]
+                    y_adder = operation[2]
+
+                    # На краю доски присутствует Ладья
+                    if cells_list[self.x][y_castle].figure and isinstance(cells_list[self.x][y_castle].figure, Castle):
+                        castle = cells_list[self.x][y_castle].figure
+                        # Ладья - того же цвета, что и король; ладья не ходила ни разу
+                        if castle.is_white == self.is_white and castle.steps_count == 0:
+                            # Между ними отсуствуют фигуры
+                            is_castling = True
+                            y = self.y
+                            while op_func(y, y_castle - y_adder):
+                                y += y_adder
+                                # Если на пути между Ладьёй и Королём фигуры, либо клетка под боем - запрет рокировки
+                                if cells_list[self.x][y].figure or \
+                                   cells_list[self.x][y].is_under_attack(self.is_white):
+                                    is_castling = False
+                                    break
+                            if is_castling:
+                                available_cells.append([self.x, self.y + 2 * y_adder])
+        # Исключить ходы, ведушие к мату
+        if self.game.current_player.is_white == self.is_white:
+            available_cells = self.get_steps_to_prevent_check(available_cells)
         return available_cells
 
-    # Удаление ячеек под боем вокруг короля из доступных для хода
-    def delete_unavailable_cells(self, available_cells, cells_list):
-        # Проход поля ячеек
-        for i in range(0, 8):
-            for j in range(0, 8):
-                # Поиск вражеских фигур
-                if cells_list[i][j].figure:
-                    if cells_list[i][j].figure.is_white != self.is_white:
-                        enemy_figure = cells_list[i][j].figure
-                        # Удаление вражеских ходов из доступных для хода королю
-                        if isinstance(enemy_figure, Pawn):
-                            enemy_cells = enemy_figure.get_attacks()
-                        else:
-                            enemy_cells = enemy_figure.get_available_cells()
-                        for enemy_cell in enemy_cells:
-                            if enemy_cell in available_cells:
-                                available_cells.remove(enemy_cell)

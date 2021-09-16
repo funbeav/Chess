@@ -75,7 +75,7 @@ def callback(event):
         new_game.move(x, y)
     else:
         new_game.choose_figure(x, y)
-    print(new_game)
+    # print(new_game)
     Chessboard(new_game, canvas_field)
 
 
