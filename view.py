@@ -1,5 +1,6 @@
 from tkinter import *
 from ChessGame import *
+from math import sin, cos
 
 import PIL.Image
 import PIL.ImageTk
@@ -32,12 +33,7 @@ class Chessboard:
                 # Отрисовка фигур
                 if game.field.cells_list[i][j].figure:
                     figure = game.field.cells_list[i][j].figure
-                    img = PIL.Image.open(f"Figures/style0/{figure.get_fullname()}.png")
-                    img = img.resize((STEP_SIZE, STEP_SIZE), PIL.Image.ANTIALIAS)
-                    photo = PIL.ImageTk.PhotoImage(img)
-                    images.append(photo)
-                    canvas.create_image(j * STEP_SIZE + STEP_SIZE / 2 - 1, i * STEP_SIZE + STEP_SIZE / 2,
-                                        image=photo, tags="figure")
+                    create_figure(canvas, i * STEP_SIZE + STEP_SIZE / 2, j * STEP_SIZE + STEP_SIZE / 2 - 1, figure)
 
                 # Отображение доступных ходов
                 if game.chosen_figure:
@@ -65,14 +61,52 @@ class Chessboard:
 
                 current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
             current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
+
+        # Пешка добралась до границы поля
+        if new_game.pawn_reached_border:
+            create_rectangle(root, canvas, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3)
+            create_round_rectangle(canvas,
+                                   FIELD_SIZE / 2 - STEP_SIZE / 2 - STEP_SIZE * 0.05, 2 * STEP_SIZE - STEP_SIZE * 0.05,
+                                   FIELD_SIZE / 2 + STEP_SIZE / 2 + STEP_SIZE * 0.05,
+                                   FIELD_SIZE - 2 * STEP_SIZE + STEP_SIZE * 0.05,
+                                   20, 100, CLR_WHITE)
+            create_figure(canvas, 2 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
+                          "queen", new_game.current_player.is_white)
+            create_figure(canvas, 3 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
+                          "castle", new_game.current_player.is_white)
+            create_figure(canvas, 4 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
+                          "bishop", new_game.current_player.is_white)
+            create_figure(canvas, 5 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
+                          "knight", new_game.current_player.is_white)
+
         canvas.pack()
+
+    @staticmethod
+    def get_figure_by_coordinates(x, y):
+        if FIELD_SIZE / 2 - STEP_SIZE / 2 < x < FIELD_SIZE / 2 + STEP_SIZE / 2:
+            if 2 * STEP_SIZE < y < 3 * STEP_SIZE:
+                return "queen"
+            if 3 * STEP_SIZE < y < 4 * STEP_SIZE:
+                return "castle"
+            if 4 * STEP_SIZE < y < 5 * STEP_SIZE:
+                return "bishop"
+            if 5 * STEP_SIZE < y < 6 * STEP_SIZE:
+                return "knight"
+        return None
 
 
 def callback(event):
     x = int(event.y / FIELD_SIZE * 8)
     y = int(event.x / FIELD_SIZE * 8)
+
     if new_game.chosen_figure:
-        new_game.move(x, y)
+        if new_game.pawn_reached_border:
+            figure_str = Chessboard.get_figure_by_coordinates(event.x, event.y)
+            if figure_str:
+                new_game.pawn_transformation(figure_str)
+                new_game.choose_figure(x, y)
+        else:
+            new_game.move(x, y)
     else:
         new_game.choose_figure(x, y)
     # print(new_game)
@@ -89,8 +123,8 @@ def create_oval(*args, **kwargs):
         if "outline_fill" in kwargs:
             what_to_fill[1] = "outline_fill"
 
-        fill = root.winfo_rgb(kwargs.pop(what_to_fill[0] if what_to_fill[0] else what_to_fill[1])) + \
-               (int(kwargs.pop("alpha") * 255),)
+        to_fill = what_to_fill[0] if what_to_fill[0] else what_to_fill[1]
+        fill = root.winfo_rgb(kwargs.pop(to_fill)) + (int(kwargs.pop("alpha") * 255),)
         width = kwargs.pop("width") if "width" in kwargs else None
         image = PIL.Image.new("RGBA", (FIELD_SIZE, FIELD_SIZE))
         PIL.ImageDraw.Draw(image).ellipse(args, width=width,
@@ -100,6 +134,67 @@ def create_oval(*args, **kwargs):
         images.append(image)  # prevent the Image from being garbage-collected
         return canvas_field.create_image(0, 0, image=image, anchor="nw", tags="temp")
     return canvas_field.create_oval(*args, **kwargs)
+
+
+# Отрисовка фигуры
+def create_figure(canvas, i, j, figure, is_white=True):
+    if isinstance(figure, Figure):
+        figure_name = figure.get_fullname()
+    else:
+        figure_name = figure + "_" + "white" if is_white else figure + "_" + "black"
+    img = PIL.Image.open(f"Figures/style0/{figure_name}.png")
+    img = img.resize((STEP_SIZE, STEP_SIZE), PIL.Image.ANTIALIAS)
+    photo = PIL.ImageTk.PhotoImage(img)
+    images.append(photo)
+    canvas.create_image(j, i, image=photo, tags="figure")
+
+
+# Define a function to make the transparent rectangle
+def create_rectangle(win, canvas, x, y, a, b, **options):
+    if 'alpha' in options:
+        # Calculate the alpha transparency for every color(RGB)
+        alpha = int(options.pop('alpha') * 255)
+        # Use the fill variable to fill the shape with transparent color
+        fill = options.pop('fill')
+        fill = win.winfo_rgb(fill) + (alpha,)
+        image = PIL.Image.new('RGBA', (a - x, b - y), fill)
+        images.append(PIL.ImageTk.PhotoImage(image))
+        canvas.create_image(x, y, image=images[-1], anchor='nw')
+        canvas.create_rectangle(x, y, a, b, **options)
+
+
+def create_round_rectangle(c, x1, y1, x2, y2, feather, res=5, color='black'):
+    points = []
+    # top side
+    points += [x1 + feather, y1,
+               x2 - feather, y1]
+    # top right corner
+    for i in range(res):
+        points += [x2 - feather + sin(i / res * 2) * feather,
+                   y1 + feather - cos(i / res * 2) * feather]
+    # right side
+    points += [x2, y1 + feather,
+               x2, y2 - feather]
+    # bottom right corner
+    for i in range(res):
+        points += [x2 - feather + cos(i / res * 2) * feather,
+                   y2 - feather + sin(i / res * 2) * feather]
+    # bottom side
+    points += [x2 - feather, y2,
+               x1 + feather, y2]
+    # bottom left corner
+    for i in range(res):
+        points += [x1 + feather - sin(i / res * 2) * feather,
+                   y2 - feather + cos(i / res * 2) * feather]
+    # left side
+    points += [x1, y2 - feather,
+               x1, y1 + feather]
+    # top left corner
+    for i in range(res):
+        points += [x1 + feather - cos(i / res * 2) * feather,
+                   y1 + feather - sin(i / res * 2) * feather]
+
+    return c.create_polygon(points, fill=color)  # ?
 
 
 new_game = Game()

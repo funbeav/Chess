@@ -13,6 +13,8 @@ class Game:
         self.chosen_figure = None
         self.moves_history = list()
         self.last_move = tuple()
+        self.pawn_reached_border = False
+        self.pawn_to_figure_class = Queen
 
     def __str__(self):
         if self.chosen_figure:
@@ -26,7 +28,8 @@ class Game:
                f"Moves History: {self.moves_history}\n" \
                f"Current Player: {self.current_player}\n" \
                f"Chosen Figure: {self.chosen_figure}\n" \
-               f"Chosen Figure Steps: {steps_count}\n"
+               f"Chosen Figure Steps: {steps_count}\n" \
+               f"Pawn reached border: {self.pawn_reached_border}\n"
                # f"{self.field}\n"
         return info
 
@@ -55,17 +58,45 @@ class Game:
                         return True
         return False
 
+    def pawn_transformation(self, figure=Queen):
+        figure_class = Queen
+        if isinstance(figure, Figure):
+            figure_class = figure
+        else:
+            if figure == "queen": figure_class = Queen
+            if figure == "castle": figure_class = Castle
+            if figure == "bishop": figure_class = Bishop
+            if figure == "knight": figure_class = Knight
+        self.pawn_to_figure_class = figure_class
+
     # Trying to choose figure by checking [x, y] of the chosen cell
     def choose_figure(self, x, y):
-        chosen_cell = self.field.cells_list[x][y]
-        # Содержит ли ячейка фигуру
-        if chosen_cell.figure:
-            # Является ли она фигурой вашего цвета
-            if chosen_cell.figure.is_white == self.current_player.is_white:
-                self.chosen_figure = chosen_cell.figure
-                return True
-        self.chosen_figure = None
-        return False
+        # Block choosing when Pawn reached border
+        if self.pawn_reached_border:
+            figure_instead_of_pawn = self.pawn_to_figure_class(self.chosen_figure.x,
+                                                               self.chosen_figure.y,
+                                                               self.chosen_figure.is_white, self)
+            figure_instead_of_pawn.steps_count = self.chosen_figure.steps_count
+            self.field.cells_list[self.chosen_figure.x][self.chosen_figure.y].figure = figure_instead_of_pawn
+
+            # New turn
+            self.chosen_figure = None
+            self.pawn_reached_border = False
+            if self.current_player.is_white:
+                self.current_player = self.player_black
+            else:
+                self.current_player = self.player_white
+
+        else:
+            chosen_cell = self.field.cells_list[x][y]
+            # Содержит ли ячейка фигуру
+            if chosen_cell.figure:
+                # Является ли она фигурой вашего цвета
+                if chosen_cell.figure.is_white == self.current_player.is_white:
+                    self.chosen_figure = chosen_cell.figure
+                    return True
+            self.chosen_figure = None
+            return False
 
     # Trying to move to coordinates [x, y]
     def move(self, x, y):
@@ -83,8 +114,8 @@ class Game:
                 # Simple move to available cell
                 self.field.cells_list[x][y].set_figure(self.chosen_figure)
 
-                # Check for "En Passant" attack (взятие пешкой на проходе)
                 if isinstance(self.chosen_figure, Pawn):
+                    # Check for "En Passant" attack (взятие пешкой на проходе)
                     last_move = self.get_last_move()
                     # Последний ход был пешкой (1)
                     # через одну клетку (2)
@@ -100,6 +131,12 @@ class Game:
                             self.current_player.add_score("pawn")
                             # Delete En Passant attacked pawn
                             self.field.cells_list[last_move[3][0]][last_move[3][1]].figure = None
+
+                    # Check for Pawn reached the border
+                    if x == 0 or x == 7:
+                        self.pawn_reached_border = True
+                    else:
+                        self.pawn_reached_border = False
 
                 # Check for castling move
                 if isinstance(self.chosen_figure, King) and abs(self.chosen_figure.y - y) == 2:
@@ -124,14 +161,15 @@ class Game:
                 self.chosen_figure.steps_count += 1
 
                 # New turn
-                self.moves_count += 1
-                self.chosen_figure = None
-                if self.current_player.is_white:
-                    self.current_player = self.player_black
-                else:
-                    self.current_player = self.player_white
+                if not self.pawn_reached_border:
+                    self.chosen_figure = None
+                    if self.current_player.is_white:
+                        self.current_player = self.player_black
+                    else:
+                        self.current_player = self.player_white
 
                 # Save movement to history
+                self.moves_count += 1
                 self.set_move_to_history(move_history_record)
                 return True
             else:
