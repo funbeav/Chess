@@ -15,6 +15,8 @@ class Game:
         self.last_move = tuple()
         self.pawn_reached_border = False
         self.pawn_to_figure_class = Queen
+        self.check = False
+        self.checkmate = False
 
     def __str__(self):
         if self.chosen_figure:
@@ -29,7 +31,9 @@ class Game:
                f"Current Player: {self.current_player}\n" \
                f"Chosen Figure: {self.chosen_figure}\n" \
                f"Chosen Figure Steps: {steps_count}\n" \
-               f"Pawn reached border: {self.pawn_reached_border}\n"
+               f"Pawn reached border: {self.pawn_reached_border}\n" \
+               f"Check: {self.check}\n" \
+               f"Checkmate: {self.checkmate}\n"
                # f"{self.field}\n"
         return info
 
@@ -58,6 +62,30 @@ class Game:
                         return True
         return False
 
+    def is_checkmate(self):
+        cells_list = self.field.cells_list
+        for i in range(8):
+            for j in range(8):
+                if cells_list[i][j].figure:
+                    if cells_list[i][j].figure.is_white == self.current_player.is_white:
+                        self.chosen_figure = cells_list[i][j].figure
+                        if cells_list[i][j].figure.get_available_cells():
+                            self.chosen_figure = None
+                            return False
+        self.chosen_figure = None
+        return True
+
+    def new_turn(self):
+        self.chosen_figure = None
+        if self.current_player.is_white:
+            self.current_player = self.player_black
+        else:
+            self.current_player = self.player_white
+
+        self.check = self.is_check()
+        if self.check:
+            self.checkmate = self.is_checkmate()
+
     def pawn_transformation(self, figure=Queen):
         figure_class = Queen
         if isinstance(figure, Figure):
@@ -78,14 +106,10 @@ class Game:
                                                                self.chosen_figure.is_white, self)
             figure_instead_of_pawn.steps_count = self.chosen_figure.steps_count
             self.field.cells_list[self.chosen_figure.x][self.chosen_figure.y].figure = figure_instead_of_pawn
+            self.pawn_reached_border = False
 
             # New turn
-            self.chosen_figure = None
-            self.pawn_reached_border = False
-            if self.current_player.is_white:
-                self.current_player = self.player_black
-            else:
-                self.current_player = self.player_white
+            self.new_turn()
 
         else:
             chosen_cell = self.field.cells_list[x][y]
@@ -162,11 +186,7 @@ class Game:
 
                 # New turn
                 if not self.pawn_reached_border:
-                    self.chosen_figure = None
-                    if self.current_player.is_white:
-                        self.current_player = self.player_black
-                    else:
-                        self.current_player = self.player_white
+                    self.new_turn()
 
                 # Save movement to history
                 self.moves_count += 1

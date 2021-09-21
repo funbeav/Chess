@@ -28,6 +28,7 @@ class Figure:
     def get_available_cells(self):
         return []
 
+    # Исключает из списка возможных ходов те ходы, которые неизбежно приведут к мату
     def get_steps_to_prevent_check(self, old_cells):
         available_cells = []
         # Если произошёл Шах, доступны лишь те ходы, которые избавят от Шаха
@@ -313,4 +314,3 @@ class King(Figure):
         if self.game.current_player.is_white == self.is_white:
             available_cells = self.get_steps_to_prevent_check(available_cells)
         return available_cells
-

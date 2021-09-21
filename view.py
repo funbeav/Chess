@@ -10,15 +10,22 @@ FIELD_SIZE = 640
 STEP_SIZE = int(FIELD_SIZE / 8)
 CLR_BLACK = "#b58863"
 CLR_WHITE = "#f0d9b5"
+CLR_ACTIVE = "#ff7e00"
+
+
+is_label_shown = False
+FRAMES = 0
 
 
 class Chessboard:
     def __init__(self, game, canvas):
         global images
-        images = []
+        images.clear()
         canvas.delete("cell")
         canvas.delete("figure")
         canvas.delete("temp")
+        canvas.delete("pawn_menu")
+
         available_cells = []
         if game.chosen_figure:
             available_cells = game.chosen_figure.get_available_cells()
@@ -30,13 +37,26 @@ class Chessboard:
                                         j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
                                         fill=current_color, width=0, tags="cell")
 
-                # Отрисовка фигур
-                if game.field.cells_list[i][j].figure:
-                    figure = game.field.cells_list[i][j].figure
-                    create_figure(canvas, i * STEP_SIZE + STEP_SIZE / 2, j * STEP_SIZE + STEP_SIZE / 2 - 1, figure)
+                # Отрисовка последнего хода
+                if game.last_move:
+                    cell_from = [game.last_move[2][0], game.last_move[2][1]]
+                    cell_to = [game.last_move[3][0], game.last_move[3][1]]
+                    if [i, j] == cell_from or [i, j] == cell_to:
+                        create_rectangle(canvas,
+                                         j * STEP_SIZE, i * STEP_SIZE,
+                                         j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
+                                         fill=CLR_ACTIVE, alpha=.15, width=0)
 
-                # Отображение доступных ходов
+                # В случае, если выбрана фигура
                 if game.chosen_figure:
+                    # Выделение выбранной фигуры
+                    if [i, j] == [game.chosen_figure.x, game.chosen_figure.y]:
+                        create_rectangle(canvas,
+                                         j * STEP_SIZE, i * STEP_SIZE,
+                                         j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
+                                         fill=CLR_ACTIVE, alpha=.15, width=0)
+
+                    # Отображение доступных ходов
                     if [i, j] in available_cells:
                         # "Особое" отображение взятия в проходе для пешек
                         if isinstance(game.chosen_figure, Pawn):
@@ -59,25 +79,33 @@ class Chessboard:
                                             j * STEP_SIZE + STEP_SIZE * 0.7, i * STEP_SIZE + STEP_SIZE * 0.7,
                                             fill="black", alpha=.1)
 
+                # Отрисовка фигур
+                if game.field.cells_list[i][j].figure:
+                    figure = game.field.cells_list[i][j].figure
+                    create_figure(canvas, i * STEP_SIZE + STEP_SIZE / 2,
+                                  j * STEP_SIZE + STEP_SIZE / 2 - 1, figure)
+
                 current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
             current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
 
         # Пешка добралась до границы поля
         if new_game.pawn_reached_border:
-            create_rectangle(root, canvas, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3)
+            create_rectangle(canvas, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="pawn_menu")
             create_round_rectangle(canvas,
                                    FIELD_SIZE / 2 - STEP_SIZE / 2 - STEP_SIZE * 0.05, 2 * STEP_SIZE - STEP_SIZE * 0.05,
                                    FIELD_SIZE / 2 + STEP_SIZE / 2 + STEP_SIZE * 0.05,
                                    FIELD_SIZE - 2 * STEP_SIZE + STEP_SIZE * 0.05,
-                                   20, 100, CLR_WHITE)
+                                   20, 100, CLR_WHITE, tags="pawn_menu")
             create_figure(canvas, 2 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
-                          "queen", new_game.current_player.is_white)
+                          "queen", new_game.current_player.is_white, tags="pawn_menu")
             create_figure(canvas, 3 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
-                          "castle", new_game.current_player.is_white)
+                          "castle", new_game.current_player.is_white, tags="pawn_menu")
             create_figure(canvas, 4 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
-                          "bishop", new_game.current_player.is_white)
+                          "bishop", new_game.current_player.is_white, tags="pawn_menu")
             create_figure(canvas, 5 * STEP_SIZE + STEP_SIZE / 2, FIELD_SIZE / 2,
-                          "knight", new_game.current_player.is_white)
+                          "knight", new_game.current_player.is_white, tags="pawn_menu")
+
+            canvas.tag_raise("pawn_menu")
 
         canvas.pack()
 
@@ -95,22 +123,66 @@ class Chessboard:
         return None
 
 
+frames = []
+frame_count = 0
+
+
+def show_label(label, is_white):
+    global frame_count, frames
+    if frame_count == 0:
+        create_rectangle(canvas_field, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
+    if frame_count < 10:
+        frame_count += 1
+        canvas_field.delete("label")
+
+        if frames:
+            frames.pop()
+        width = int(FIELD_SIZE * 1.2 - frame_count * 50)
+        width = FIELD_SIZE if width < FIELD_SIZE else width
+
+        filename = label + "_black" if is_white else label + "_white"
+        img = PIL.Image.open(f"Labels/{filename}.png")
+        img = img.resize((width, width), PIL.Image.ANTIALIAS)
+        photo = PIL.ImageTk.PhotoImage(img)
+        canvas_field.create_image(FIELD_SIZE / 2, FIELD_SIZE / 2, image=photo, tags="label")
+        frames.append(photo)
+
+        canvas_field.after(10, lambda: show_label(label, is_white))
+    else:
+        if label == "check":
+            frames.clear()
+            Chessboard(new_game, canvas_field)
+        frame_count = 0
+
+
 def callback(event):
+    global is_label_shown
     x = int(event.y / FIELD_SIZE * 8)
     y = int(event.x / FIELD_SIZE * 8)
 
-    if new_game.chosen_figure:
-        if new_game.pawn_reached_border:
-            figure_str = Chessboard.get_figure_by_coordinates(event.x, event.y)
-            if figure_str:
-                new_game.pawn_transformation(figure_str)
-                new_game.choose_figure(x, y)
+    if not new_game.checkmate:
+        if new_game.chosen_figure:
+            if new_game.pawn_reached_border:
+                figure_str = Chessboard.get_figure_by_coordinates(event.x, event.y)
+                if figure_str:
+                    new_game.pawn_transformation(figure_str)
+                    new_game.choose_figure(x, y)
+            else:
+                new_game.move(x, y)
         else:
-            new_game.move(x, y)
-    else:
-        new_game.choose_figure(x, y)
-    # print(new_game)
-    Chessboard(new_game, canvas_field)
+            new_game.choose_figure(x, y)
+        # print(new_game)
+        Chessboard(new_game, canvas_field)
+
+        # If Check / Mate
+        if new_game.check and not is_label_shown:
+            if new_game.checkmate:
+                show_label("checkmate", new_game.current_player.is_white)
+            else:
+                show_label("check", new_game.current_player.is_white)
+            is_label_shown = True
+        if not new_game.check:
+            is_label_shown = False
 
 
 # Возвращает прозрачный круг / окружность
@@ -137,7 +209,7 @@ def create_oval(*args, **kwargs):
 
 
 # Отрисовка фигуры
-def create_figure(canvas, i, j, figure, is_white=True):
+def create_figure(canvas, i, j, figure, is_white=True, tags="temp"):
     if isinstance(figure, Figure):
         figure_name = figure.get_fullname()
     else:
@@ -146,24 +218,24 @@ def create_figure(canvas, i, j, figure, is_white=True):
     img = img.resize((STEP_SIZE, STEP_SIZE), PIL.Image.ANTIALIAS)
     photo = PIL.ImageTk.PhotoImage(img)
     images.append(photo)
-    canvas.create_image(j, i, image=photo, tags="figure")
+    canvas.create_image(j, i, image=photo, tags=tags)
 
 
 # Define a function to make the transparent rectangle
-def create_rectangle(win, canvas, x, y, a, b, **options):
+def create_rectangle(canvas, x, y, a, b, **options):
     if 'alpha' in options:
         # Calculate the alpha transparency for every color(RGB)
         alpha = int(options.pop('alpha') * 255)
         # Use the fill variable to fill the shape with transparent color
         fill = options.pop('fill')
-        fill = win.winfo_rgb(fill) + (alpha,)
+        fill = root.winfo_rgb(fill) + (alpha,)
         image = PIL.Image.new('RGBA', (a - x, b - y), fill)
         images.append(PIL.ImageTk.PhotoImage(image))
         canvas.create_image(x, y, image=images[-1], anchor='nw')
-        canvas.create_rectangle(x, y, a, b, **options)
+        return canvas.create_rectangle(x, y, a, b, **options)
 
 
-def create_round_rectangle(c, x1, y1, x2, y2, feather, res=5, color='black'):
+def create_round_rectangle(c, x1, y1, x2, y2, feather, res=5, color='black', tags='temp'):
     points = []
     # top side
     points += [x1 + feather, y1,
@@ -194,7 +266,7 @@ def create_round_rectangle(c, x1, y1, x2, y2, feather, res=5, color='black'):
         points += [x1 + feather - cos(i / res * 2) * feather,
                    y1 + feather - sin(i / res * 2) * feather]
 
-    return c.create_polygon(points, fill=color)  # ?
+    return c.create_polygon(points, fill=color, tags=tags)
 
 
 new_game = Game()
