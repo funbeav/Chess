@@ -30,12 +30,23 @@ class Chessboard:
         if game.chosen_figure:
             available_cells = game.chosen_figure.get_available_cells()
         current_color = CLR_WHITE
+
+        letters = 'abcdefgh'
         for i in range(8):
             for j in range(8):
                 # Отрисовка клеток
                 canvas.create_rectangle(j * STEP_SIZE, i * STEP_SIZE,
                                         j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
                                         fill=current_color, width=0, tags="cell")
+                # Нумерация
+                if i == 7:
+                    canvas.create_text(j * STEP_SIZE + STEP_SIZE * 9 / 10, i * STEP_SIZE + STEP_SIZE * 7 / 8,
+                                       fill=CLR_BLACK if current_color == CLR_WHITE else CLR_WHITE,
+                                       text=letters[j], font="Bahnschrift 10")
+                if j == 0:
+                    canvas.create_text(j * STEP_SIZE + STEP_SIZE * 1 / 10, i * STEP_SIZE + STEP_SIZE * 1 / 8,
+                                       fill=CLR_BLACK if current_color == CLR_WHITE else CLR_WHITE,
+                                       text=8 - i, font="Bahnschrift 10")
 
                 # Отрисовка последнего хода
                 if game.last_move:
@@ -123,36 +134,49 @@ class Chessboard:
         return None
 
 
-frames = []
-frame_count = 0
+class Label:
+    def __init__(self):
+        self.frames = []
+        self.frame_count = 0
 
+    def show_label(self, timer, label, is_white):
+        # Отрисовка каждого кадра
+        if self.frame_count < 10:
+            self.frame_count += 1
+            if self.frames:
+                self.frames.pop()
+            canvas_field.delete(f"label_{label}")
 
-def show_label(label, is_white):
-    global frame_count, frames
-    if frame_count == 0:
-        create_rectangle(canvas_field, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
-    if frame_count < 10:
-        frame_count += 1
-        canvas_field.delete("label")
+            width = int(FIELD_SIZE * 1.2 - self.frame_count * 50)
+            width = FIELD_SIZE if width < FIELD_SIZE else width
 
-        if frames:
-            frames.pop()
-        width = int(FIELD_SIZE * 1.2 - frame_count * 50)
-        width = FIELD_SIZE if width < FIELD_SIZE else width
+            filename = label + "_black" if is_white else label + "_white"
+            img = PIL.Image.open(f"Labels/{filename}.png")
+            img = img.resize((width, width), PIL.Image.ANTIALIAS)
+            photo = PIL.ImageTk.PhotoImage(img)
+            canvas_field.create_image(FIELD_SIZE / 2, FIELD_SIZE / 2, image=photo, tags=f"label_{label}")
+            self.frames.append(photo)
 
-        filename = label + "_black" if is_white else label + "_white"
-        img = PIL.Image.open(f"Labels/{filename}.png")
-        img = img.resize((width, width), PIL.Image.ANTIALIAS)
-        photo = PIL.ImageTk.PhotoImage(img)
-        canvas_field.create_image(FIELD_SIZE / 2, FIELD_SIZE / 2, image=photo, tags="label")
-        frames.append(photo)
+            canvas_field.after(timer, self.show_label, timer, label, is_white)
+        # Все кадры отрисованы
+        else:
+            if label == "check":
+                self.frames.clear()
+                canvas_field.delete(f"label_{label}")
+                Chessboard(new_game, canvas_field)
 
-        canvas_field.after(10, lambda: show_label(label, is_white))
-    else:
-        if label == "check":
-            frames.clear()
-            Chessboard(new_game, canvas_field)
-        frame_count = 0
+            # tkinter очищает объекты изображений, если они не попадают в глабльный scope
+            # Чтобы надпись не очищалась - занесём последний кадр в глобальный список images
+            if label == "checkmate":
+                images.append(self.frames[-1])
+                canvas_field.after(timer, Label().show_label, timer, "win", is_white)
+            if label == "win":
+                images.append(self.frames[-1])
+            if label == "stalemate":
+                images.append(self.frames[-1])
+                canvas_field.after(timer, Label().show_label, timer, "draw", is_white)
+            if label == "draw":
+                images.append(self.frames[-1])
 
 
 def callback(event):
@@ -160,7 +184,7 @@ def callback(event):
     x = int(event.y / FIELD_SIZE * 8)
     y = int(event.x / FIELD_SIZE * 8)
 
-    if not new_game.checkmate:
+    if not new_game.checkmate and not new_game.stalemate:
         if new_game.chosen_figure:
             if new_game.pawn_reached_border:
                 figure_str = Chessboard.get_figure_by_coordinates(event.x, event.y)
@@ -175,11 +199,14 @@ def callback(event):
         Chessboard(new_game, canvas_field)
 
         # If Check / Mate
-        if new_game.check and not is_label_shown:
+        if (new_game.check or new_game.checkmate or new_game.stalemate) and not is_label_shown:
+            create_rectangle(canvas_field, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
             if new_game.checkmate:
-                show_label("checkmate", new_game.current_player.is_white)
-            else:
-                show_label("check", new_game.current_player.is_white)
+                Label().show_label(10, "checkmate", new_game.current_player.is_white)
+            elif new_game.stalemate:
+                Label().show_label(10, "stalemate", new_game.current_player.is_white)
+            elif new_game.check:
+                Label().show_label(10, "check", new_game.current_player.is_white)
             is_label_shown = True
         if not new_game.check:
             is_label_shown = False
@@ -215,7 +242,8 @@ def create_figure(canvas, i, j, figure, is_white=True, tags="temp"):
     else:
         figure_name = figure + "_" + "white" if is_white else figure + "_" + "black"
     img = PIL.Image.open(f"Figures/style0/{figure_name}.png")
-    img = img.resize((STEP_SIZE, STEP_SIZE), PIL.Image.ANTIALIAS)
+    img_size = int(STEP_SIZE * 0.95)
+    img = img.resize((img_size, img_size), PIL.Image.ANTIALIAS)
     photo = PIL.ImageTk.PhotoImage(img)
     images.append(photo)
     canvas.create_image(j, i, image=photo, tags=tags)

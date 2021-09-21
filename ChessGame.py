@@ -17,6 +17,7 @@ class Game:
         self.pawn_to_figure_class = Queen
         self.check = False
         self.checkmate = False
+        self.stalemate = False
 
     def __str__(self):
         if self.chosen_figure:
@@ -62,7 +63,7 @@ class Game:
                         return True
         return False
 
-    def is_checkmate(self):
+    def is_mate(self):
         cells_list = self.field.cells_list
         for i in range(8):
             for j in range(8):
@@ -83,8 +84,9 @@ class Game:
             self.current_player = self.player_white
 
         self.check = self.is_check()
-        if self.check:
-            self.checkmate = self.is_checkmate()
+        mate = self.is_mate()
+        self.checkmate = True if self.check and mate else False
+        self.stalemate = True if not self.check and mate else False
 
     def pawn_transformation(self, figure=Queen):
         figure_class = Queen
