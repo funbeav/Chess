@@ -13,6 +13,8 @@ CLR_WHITE = "#f0d9b5"
 CLR_BLACK = "#b58863"
 CLR_ACTIVE = "#ff7e00"
 CLR_CHECK = "red"
+IMG_PATH = "images"
+STYLE_NUM = 0
 
 FRAMES = 0
 images = []
@@ -54,17 +56,35 @@ class Menu:
         # Settings
         if is_settings_active:
             self.canvas.delete("menu")
-            self.create_label(FIELD_SIZE / 2 - STEP_SIZE, FIELD_SIZE / 2, ("Styles/f0d9b5_b58863", "settings"), bd=1)
-            self.create_label(FIELD_SIZE / 2 + STEP_SIZE, FIELD_SIZE / 2, ("Styles/eeeed2_769656", "settings"), bd=1)
+            active_clr = 'orange' if CLR_WHITE == "#f0d9b5" else 'black'
+            self.create_label(FIELD_SIZE / 2 - STEP_SIZE * 1.2,
+                              FIELD_SIZE / 2 - STEP_SIZE * 0.75,
+                              ("Colors/f0d9b5_b58863", "settings"), bd=1, to_size=(80, 80), bd_fill=active_clr)
+            active_clr = 'orange' if CLR_WHITE == "#eeeed2" else 'black'
+            self.create_label(FIELD_SIZE / 2 - STEP_SIZE * 1.2,
+                              FIELD_SIZE / 2 + STEP_SIZE * 0.75,
+                              ("Colors/eeeed2_769656", "settings"), bd=1, to_size=(80, 80), bd_fill=active_clr)
+            active_clr = 'orange' if STYLE_NUM == 0 else 'black'
+            self.create_label(FIELD_SIZE / 2 + STEP_SIZE * 1.2,
+                              FIELD_SIZE / 2 - STEP_SIZE * 0.75,
+                              ("Figures/style0/queen_white", "settings"), bd=1, to_size=(80, 80), bd_fill=active_clr)
+            active_clr = 'orange' if STYLE_NUM == 1 else 'black'
+            self.create_label(FIELD_SIZE / 2 + STEP_SIZE * 1.2,
+                              FIELD_SIZE / 2 + STEP_SIZE * 0.75,
+                              ("Figures/style1/queen_white", "settings"), bd=1, to_size=(80, 80), bd_fill=active_clr)
+            self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2, ("Labels/ok", "settings"), resize=2)
 
-    def create_label(self, x, y, name, resize=1, bd=0):
-        img = PIL.Image.open(f"{name[0]}.png")
+    def create_label(self, x, y, name, resize=1, to_size=None, bd=0, bd_fill='black'):
+        img = PIL.Image.open(f"{IMG_PATH}/{name[0]}.png")
         width, height = img.size
-        img = img.resize((width // resize, height // resize))
+        if to_size:
+            img = img.resize((to_size[0], to_size[1]))
+        else:
+            img = img.resize((width // resize, height // resize))
         if bd:
-            img = PIL.ImageOps.expand(img, border=1, fill='black')
+            img = PIL.ImageOps.expand(img, border=1, fill=bd_fill)
         photo = PIL.ImageTk.PhotoImage(img)
-        self.canvas.create_image(x, y, image=photo, tags=name)
+        i = self.canvas.create_image(x, y, image=photo, tags=name)
         images.append(photo)
 
 
@@ -152,7 +172,7 @@ class Chessboard:
                 if game.field.cells_list[i][j].figure:
                     figure = game.field.cells_list[i][j].figure
                     create_figure(canvas, i * STEP_SIZE + STEP_SIZE / 2,
-                                  j * STEP_SIZE + STEP_SIZE / 2 - 1, figure)
+                                  j * STEP_SIZE + STEP_SIZE / 2, figure)
 
                 current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
             current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
@@ -213,7 +233,7 @@ class Label:
                 filename = label
             else:
                 filename = label + "_black" if is_white else label + "_white"
-            img = PIL.Image.open(f"Labels/{filename}.png")
+            img = PIL.Image.open(f"{IMG_PATH}/Labels/{filename}.png")
             img = img.resize((width, width), PIL.Image.ANTIALIAS)
             photo = PIL.ImageTk.PhotoImage(img)
             canvas_field.create_image(FIELD_SIZE / 2, FIELD_SIZE / 2, image=photo, tags=f"label_{label}")
@@ -238,11 +258,11 @@ class Label:
                 is_game_starts = False
 
 
+# On Click event
 def callback(event):
     global is_menu_active, is_game_starts, is_settings_active, new_game
-
     if is_menu_active:
-        global CLR_ACTIVE, CLR_CHECK, CLR_BLACK, CLR_WHITE
+        global CLR_ACTIVE, CLR_CHECK, CLR_BLACK, CLR_WHITE, STYLE_NUM
         item = canvas_field.find_closest(event.x, event.y)
         tags = canvas_field.itemcget(item, "tags")
         if "new_game" in tags:
@@ -258,10 +278,16 @@ def callback(event):
             if 'f0d9b5_b58863' in tags:
                 CLR_WHITE = "#f0d9b5"
                 CLR_BLACK = "#b58863"
-                is_settings_active = False
             if 'eeeed2_769656' in tags:
                 CLR_WHITE = "#eeeed2"
                 CLR_BLACK = "#769656"
+
+            if 'style0' in tags:
+                STYLE_NUM = 0
+            if 'style1' in tags:
+                STYLE_NUM = 1
+
+            if 'ok' in tags:
                 is_settings_active = False
             Menu(canvas_field)
         if "quit" in tags:
@@ -303,6 +329,21 @@ def callback(event):
         Menu(canvas_field)
 
 
+# On mouse move event
+def motion(event):
+    x = int(event.y / FIELD_SIZE * 8)
+    y = int(event.x / FIELD_SIZE * 8)
+    item = canvas_field.find_closest(event.x, event.y)
+    tags = canvas_field.itemcget(item, "tags")
+    if "menu" in tags or "settings" in tags or "available_move" in tags:
+        canvas_field.configure(cursor='hand2')
+    elif "figure" in tags:
+        if new_game.field.cells_list[x][y].figure.is_white == new_game.current_player.is_white:
+            canvas_field.configure(cursor='hand2')
+    else:
+        canvas_field.configure(cursor='arrow')
+
+
 # Возвращает прозрачный круг / окружность
 def create_oval(*args, **kwargs):
     global images
@@ -313,31 +354,40 @@ def create_oval(*args, **kwargs):
         if "outline_fill" in kwargs:
             what_to_fill[1] = "outline_fill"
 
+        new_args = (0 + STEP_SIZE * 0.3,
+                    args[1] - args[1] + STEP_SIZE * 0.3,
+                    args[2] - args[0] + STEP_SIZE * 0.3,
+                    args[3] - args[1] + STEP_SIZE * 0.3)
+
         to_fill = what_to_fill[0] if what_to_fill[0] else what_to_fill[1]
         fill = root.winfo_rgb(kwargs.pop(to_fill)) + (int(kwargs.pop("alpha") * 255),)
         width = kwargs.pop("width") if "width" in kwargs else None
-        image = PIL.Image.new("RGBA", (FIELD_SIZE, FIELD_SIZE))
-        PIL.ImageDraw.Draw(image).ellipse(args, width=width,
+        image = PIL.Image.new("RGBA", (STEP_SIZE * 2, STEP_SIZE * 2))
+        PIL.ImageDraw.Draw(image).ellipse(new_args, width=width,
                                           fill=fill if what_to_fill[0] else None,
                                           outline=fill if what_to_fill[1] else None)
         image = PIL.ImageTk.PhotoImage(image)
         images.append(image)  # prevent the Image from being garbage-collected
-        return canvas_field.create_image(0, 0, image=image, anchor="nw", tags="temp")
+        image_item = canvas_field.create_image(args[0] - STEP_SIZE * 0.3,
+                                         args[1] - STEP_SIZE * 0.3,
+                                         image=image, anchor="nw", tags="available_move")
+        canvas_field.tag_raise(image_item)
+        return image_item
     return canvas_field.create_oval(*args, **kwargs)
 
 
 # Отрисовка фигуры
-def create_figure(canvas, i, j, figure, is_white=True, tags="temp"):
+def create_figure(canvas, i, j, figure, is_white=True, tags="figure"):
     if isinstance(figure, Figure):
         figure_name = figure.get_fullname()
     else:
         figure_name = figure + "_" + "white" if is_white else figure + "_" + "black"
-    img = PIL.Image.open(f"Figures/style0/{figure_name}.png")
+    img = PIL.Image.open(f"{IMG_PATH}/Figures/style{STYLE_NUM}/{figure_name}.png")
     img_size = int(STEP_SIZE * 0.95)
     img = img.resize((img_size, img_size), PIL.Image.ANTIALIAS)
     photo = PIL.ImageTk.PhotoImage(img)
     images.append(photo)
-    canvas.create_image(j, i, image=photo, tags=tags)
+    canvas.create_image(j - 1, i, image=photo, tags=tags)
 
 
 # Define a function to make the transparent rectangle
@@ -393,6 +443,7 @@ new_game = Game()
 root = Tk()
 canvas_field = Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg='white', borderwidth=0)
 canvas_field.bind("<Button-1>", callback)
+canvas_field.bind('<Motion>', motion)
 canvas_field.pack()
 
 Menu(canvas_field)
