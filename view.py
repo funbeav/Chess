@@ -5,26 +5,74 @@ from math import sin, cos
 import PIL.Image
 import PIL.ImageTk
 import PIL.ImageDraw
+import PIL.ImageOps
 
 FIELD_SIZE = 640
 STEP_SIZE = int(FIELD_SIZE / 8)
-CLR_BLACK = "#b58863"
 CLR_WHITE = "#f0d9b5"
+CLR_BLACK = "#b58863"
 CLR_ACTIVE = "#ff7e00"
+CLR_CHECK = "red"
 
-
-is_label_shown = False
 FRAMES = 0
+images = []
+is_menu_active = True
+is_game_starts = False
+is_settings_active = False
+is_label_shown = False
+
+
+class Menu:
+    def __init__(self, canvas):
+        global is_menu_active, is_game_starts, is_settings_active
+        images.clear()
+        canvas.delete("all")
+        self.canvas = canvas
+
+        current_color = CLR_WHITE
+        for i in range(8):
+            for j in range(8):
+                # Отрисовка клеток
+                canvas.create_rectangle(j * STEP_SIZE, i * STEP_SIZE,
+                                        j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
+                                        fill=current_color, width=0, tags="cell")
+                current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
+            current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
+        create_rectangle(canvas, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
+        create_round_rectangle(canvas,
+                               STEP_SIZE * 2 - STEP_SIZE * 0.05,
+                               2.5 * STEP_SIZE - STEP_SIZE * 0.05,
+                               FIELD_SIZE - STEP_SIZE * 2 + STEP_SIZE * 0.05,
+                               FIELD_SIZE - 2.5 * STEP_SIZE + STEP_SIZE * 0.05,
+                               50, 100, CLR_WHITE, tags="temp")
+        # Menu
+        if is_menu_active:
+            self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2 - STEP_SIZE / 1.2, ("Labels/new_game", "menu"), resize=2)
+            self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2, ("Labels/settings", "menu"), resize=2)
+            self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2 + STEP_SIZE / 1.2, ("Labels/quit", "menu"), resize=2)
+
+        # Settings
+        if is_settings_active:
+            self.canvas.delete("menu")
+            self.create_label(FIELD_SIZE / 2 - STEP_SIZE, FIELD_SIZE / 2, ("Styles/f0d9b5_b58863", "settings"), bd=1)
+            self.create_label(FIELD_SIZE / 2 + STEP_SIZE, FIELD_SIZE / 2, ("Styles/eeeed2_769656", "settings"), bd=1)
+
+    def create_label(self, x, y, name, resize=1, bd=0):
+        img = PIL.Image.open(f"{name[0]}.png")
+        width, height = img.size
+        img = img.resize((width // resize, height // resize))
+        if bd:
+            img = PIL.ImageOps.expand(img, border=1, fill='black')
+        photo = PIL.ImageTk.PhotoImage(img)
+        self.canvas.create_image(x, y, image=photo, tags=name)
+        images.append(photo)
 
 
 class Chessboard:
     def __init__(self, game, canvas):
-        global images
+        global images, is_menu_active, is_game_starts
         images.clear()
-        canvas.delete("cell")
-        canvas.delete("figure")
-        canvas.delete("temp")
-        canvas.delete("pawn_menu")
+        canvas.delete("all")
 
         available_cells = []
         if game.chosen_figure:
@@ -57,6 +105,16 @@ class Chessboard:
                                          j * STEP_SIZE, i * STEP_SIZE,
                                          j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
                                          fill=CLR_ACTIVE, alpha=.15, width=0)
+
+                # Отрисовка шаха королю
+                if game.check:
+                    if game.field.cells_list[i][j].figure:
+                        figure = game.field.cells_list[i][j].figure
+                        if isinstance(figure, King) and figure.is_white == game.current_player.is_white:
+                            create_rectangle(canvas,
+                                             j * STEP_SIZE, i * STEP_SIZE,
+                                             j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
+                                             fill=CLR_CHECK, alpha=.2, width=0)
 
                 # В случае, если выбрана фигура
                 if game.chosen_figure:
@@ -140,6 +198,7 @@ class Label:
         self.frame_count = 0
 
     def show_label(self, timer, label, is_white):
+        global is_menu_active, is_game_starts
         # Отрисовка каждого кадра
         if self.frame_count < 10:
             self.frame_count += 1
@@ -147,10 +206,13 @@ class Label:
                 self.frames.pop()
             canvas_field.delete(f"label_{label}")
 
-            width = int(FIELD_SIZE * 1.2 - self.frame_count * 50)
+            width = int(FIELD_SIZE * 1.2 - self.frame_count * 20)
             width = FIELD_SIZE if width < FIELD_SIZE else width
 
-            filename = label + "_black" if is_white else label + "_white"
+            if label == "stalemate" or label == "draw":
+                filename = label
+            else:
+                filename = label + "_black" if is_white else label + "_white"
             img = PIL.Image.open(f"Labels/{filename}.png")
             img = img.resize((width, width), PIL.Image.ANTIALIAS)
             photo = PIL.ImageTk.PhotoImage(img)
@@ -160,11 +222,6 @@ class Label:
             canvas_field.after(timer, self.show_label, timer, label, is_white)
         # Все кадры отрисованы
         else:
-            if label == "check":
-                self.frames.clear()
-                canvas_field.delete(f"label_{label}")
-                Chessboard(new_game, canvas_field)
-
             # tkinter очищает объекты изображений, если они не попадают в глабльный scope
             # Чтобы надпись не очищалась - занесём последний кадр в глобальный список images
             if label == "checkmate":
@@ -172,44 +229,78 @@ class Label:
                 canvas_field.after(timer, Label().show_label, timer, "win", is_white)
             if label == "win":
                 images.append(self.frames[-1])
+                is_game_starts = False
             if label == "stalemate":
                 images.append(self.frames[-1])
                 canvas_field.after(timer, Label().show_label, timer, "draw", is_white)
             if label == "draw":
                 images.append(self.frames[-1])
+                is_game_starts = False
 
 
 def callback(event):
-    global is_label_shown
-    x = int(event.y / FIELD_SIZE * 8)
-    y = int(event.x / FIELD_SIZE * 8)
+    global is_menu_active, is_game_starts, is_settings_active, new_game
 
-    if not new_game.checkmate and not new_game.stalemate:
-        if new_game.chosen_figure:
-            if new_game.pawn_reached_border:
-                figure_str = Chessboard.get_figure_by_coordinates(event.x, event.y)
-                if figure_str:
-                    new_game.pawn_transformation(figure_str)
-                    new_game.choose_figure(x, y)
+    if is_menu_active:
+        global CLR_ACTIVE, CLR_CHECK, CLR_BLACK, CLR_WHITE
+        item = canvas_field.find_closest(event.x, event.y)
+        tags = canvas_field.itemcget(item, "tags")
+        if "new_game" in tags:
+            is_menu_active = False
+            is_game_starts = True
+            new_game = Game()
+            new_game.start()
+            Chessboard(new_game, canvas_field)
+        if "settings" in tags:
+            is_settings_active = True
+            item = canvas_field.find_closest(event.x, event.y)
+            tags = canvas_field.itemcget(item, "tags")
+            if 'f0d9b5_b58863' in tags:
+                CLR_WHITE = "#f0d9b5"
+                CLR_BLACK = "#b58863"
+                is_settings_active = False
+            if 'eeeed2_769656' in tags:
+                CLR_WHITE = "#eeeed2"
+                CLR_BLACK = "#769656"
+                is_settings_active = False
+            Menu(canvas_field)
+        if "quit" in tags:
+            root.quit()
+
+    if is_game_starts:
+        global is_label_shown
+        x = int(event.y / FIELD_SIZE * 8)
+        y = int(event.x / FIELD_SIZE * 8)
+
+        if not new_game.checkmate and not new_game.stalemate:
+            if new_game.chosen_figure:
+                if new_game.pawn_reached_border:
+                    figure_str = Chessboard.get_figure_by_coordinates(event.x, event.y)
+                    if figure_str:
+                        new_game.pawn_transformation(figure_str)
+                        new_game.choose_figure(x, y)
+                else:
+                    new_game.move(x, y)
             else:
-                new_game.move(x, y)
-        else:
-            new_game.choose_figure(x, y)
-        # print(new_game)
-        Chessboard(new_game, canvas_field)
+                new_game.choose_figure(x, y)
+            # print(new_game)
+            Chessboard(new_game, canvas_field)
 
-        # If Check / Mate
-        if (new_game.check or new_game.checkmate or new_game.stalemate) and not is_label_shown:
-            create_rectangle(canvas_field, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
-            if new_game.checkmate:
-                Label().show_label(10, "checkmate", new_game.current_player.is_white)
-            elif new_game.stalemate:
-                Label().show_label(10, "stalemate", new_game.current_player.is_white)
-            elif new_game.check:
-                Label().show_label(10, "check", new_game.current_player.is_white)
-            is_label_shown = True
-        if not new_game.check:
-            is_label_shown = False
+            # If Check / Mate
+            if (new_game.checkmate or new_game.stalemate) and not is_label_shown:
+                create_rectangle(canvas_field, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
+                if new_game.checkmate:
+                    Label().show_label(10, "checkmate", new_game.current_player.is_white)
+                elif new_game.stalemate:
+                    Label().show_label(10, "stalemate", new_game.current_player.is_white)
+                is_label_shown = True
+            if not new_game.check:
+                is_label_shown = False
+
+    # Когда игра закончилась, активировать меню по нажатию, но не на варианты меню
+    if not is_game_starts and (new_game.checkmate or new_game.stalemate):
+        is_menu_active = True
+        Menu(canvas_field)
 
 
 # Возвращает прозрачный круг / окружность
@@ -298,14 +389,12 @@ def create_round_rectangle(c, x1, y1, x2, y2, feather, res=5, color='black', tag
 
 
 new_game = Game()
-new_game.start()
 
 root = Tk()
 canvas_field = Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg='white', borderwidth=0)
 canvas_field.bind("<Button-1>", callback)
 canvas_field.pack()
 
-images = []
-Chessboard(new_game, canvas_field)
+Menu(canvas_field)
 
 root.mainloop()

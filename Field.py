@@ -107,4 +107,4 @@ class Field:
         self.cells_list[3][3].set_figure(Castle(3, 3, False, self.game))
         self.cells_list[4][4].set_figure(Bishop(4, 4, False, self.game))
         self.cells_list[4][3].set_figure(King(4, 3, True, self.game))
-        '''
+'''
