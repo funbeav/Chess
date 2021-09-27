@@ -125,7 +125,7 @@ class Pawn(Figure):
         return available_cells
 
     # Доступные атаки
-    def get_attacks(self):
+    def get_attacks(self, castling=False):
         available_cells = []
         cells_list = self.game.field.cells_list
         adder = -1 if self.is_white else 1
@@ -139,10 +139,15 @@ class Pawn(Figure):
 
         for side_y in side_y_s:
             if 0 <= self.x + adder < 8:
-                # Если сбоку от текущ. пешки фигура другого цвета - она доступна для атаки
-                if cells_list[self.x + adder][side_y].figure:
-                    if cells_list[self.x + adder][side_y].figure.is_white != self.is_white:
-                        available_cells.append([self.x + adder, side_y])
+                # Если происходит проверка на потенциальные ходы для рокировки
+                if castling:
+                    available_cells.append([self.x + adder, side_y])
+                # Доступные атаки по стоящим поблизости вражеским фигурам
+                else:
+                    # Если сбоку от текущ. пешки фигура другого цвета - она доступна для атаки
+                    if cells_list[self.x + adder][side_y].figure:
+                        if cells_list[self.x + adder][side_y].figure.is_white != self.is_white:
+                            available_cells.append([self.x + adder, side_y])
 
         # En Passant attack (взятие на проходе)
         last_move = self.game.get_last_move()

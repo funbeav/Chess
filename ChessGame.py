@@ -34,8 +34,7 @@ class Game:
                f"Chosen Figure Steps: {steps_count}\n" \
                f"Pawn reached border: {self.pawn_reached_border}\n" \
                f"Check: {self.check}\n" \
-               f"Checkmate: {self.checkmate}\n"
-               # f"{self.field}\n"
+               f"Checkmate: {self.checkmate}"
         return info
 
     def start(self):

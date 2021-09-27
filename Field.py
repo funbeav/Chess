@@ -20,7 +20,6 @@ class Cell:
 
     # Возвращает True, если клетка находится под боем вражеского игрока "not is_white". Иначе - False
     def is_under_attack(self, is_white):
-        available_attacks = []
         cells_list = self.game.field.cells_list
         for i in range(8):
             for j in range(8):
@@ -29,11 +28,12 @@ class Cell:
                     if cells_list[i][j].figure.is_white != is_white:
                         enemy_figure = cells_list[i][j].figure
                         if isinstance(enemy_figure, Pawn):
-                            available_attacks = enemy_figure.get_attacks()
+                            available_attacks = enemy_figure.get_attacks(castling=True)
                         else:
                             available_attacks = enemy_figure.get_available_cells()
-                if [self.x, self.y] in available_attacks:
-                    return True
+
+                        if [self.x, self.y] in available_attacks:
+                            return True
         return False
 
 
@@ -74,7 +74,6 @@ class Field:
         self.cells_list[7][3].set_figure(Queen(7, 3, True, self.game))
         # King
         self.cells_list[7][4].set_figure(King(7, 4, True, self.game))
-
         # Black
         #   Pawns
         for j in range(8):

@@ -18,28 +18,22 @@ STYLE_NUM = 0
 
 FRAMES = 0
 images = []
+temp_images = []
 is_menu_active = True
 is_game_starts = False
 is_settings_active = False
 is_label_shown = False
+is_pause = False
 
 
 class Menu:
-    def __init__(self, canvas):
-        global is_menu_active, is_game_starts, is_settings_active
+    def __init__(self, canvas, game):
+        global is_menu_active, is_game_starts, is_settings_active, is_pause
         images.clear()
         canvas.delete("all")
         self.canvas = canvas
+        Chessboard(canvas, game)
 
-        current_color = CLR_WHITE
-        for i in range(8):
-            for j in range(8):
-                # Отрисовка клеток
-                canvas.create_rectangle(j * STEP_SIZE, i * STEP_SIZE,
-                                        j * STEP_SIZE + STEP_SIZE, i * STEP_SIZE + STEP_SIZE,
-                                        fill=current_color, width=0, tags="cell")
-                current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
-            current_color = CLR_WHITE if current_color == CLR_BLACK else CLR_BLACK
         create_rectangle(canvas, 0, 0, FIELD_SIZE, FIELD_SIZE, fill="black", alpha=.3, tags="temp")
         create_round_rectangle(canvas,
                                STEP_SIZE * 2 - STEP_SIZE * 0.05,
@@ -49,6 +43,16 @@ class Menu:
                                50, 100, CLR_WHITE, tags="temp")
         # Menu
         if is_menu_active:
+            # Add resume option when game is paused
+            if is_pause and not is_settings_active:
+                create_round_rectangle(canvas,
+                                       STEP_SIZE * 2 - STEP_SIZE * 0.05,
+                                       1.7 * STEP_SIZE - STEP_SIZE * 0.05,
+                                       FIELD_SIZE - STEP_SIZE * 2 + STEP_SIZE * 0.05,
+                                       FIELD_SIZE - 4 * STEP_SIZE + STEP_SIZE * 0.05,
+                                       50, 100, CLR_WHITE, tags="temp")
+                self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2 - STEP_SIZE / 0.6,
+                                  ("Labels/resume", "menu"), resize=2)
             self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2 - STEP_SIZE / 1.2, ("Labels/new_game", "menu"), resize=2)
             self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2, ("Labels/settings", "menu"), resize=2)
             self.create_label(FIELD_SIZE / 2, FIELD_SIZE / 2 + STEP_SIZE / 1.2, ("Labels/quit", "menu"), resize=2)
@@ -84,12 +88,12 @@ class Menu:
         if bd:
             img = PIL.ImageOps.expand(img, border=1, fill=bd_fill)
         photo = PIL.ImageTk.PhotoImage(img)
-        i = self.canvas.create_image(x, y, image=photo, tags=name)
+        self.canvas.create_image(x, y, image=photo, tags=name)
         images.append(photo)
 
 
 class Chessboard:
-    def __init__(self, game, canvas):
+    def __init__(self, canvas, game):
         global images, is_menu_active, is_game_starts
         images.clear()
         canvas.delete("all")
@@ -260,17 +264,21 @@ class Label:
 
 # On Click event
 def callback(event):
-    global is_menu_active, is_game_starts, is_settings_active, new_game
+    global is_menu_active, is_game_starts, is_settings_active, is_pause, new_game
     if is_menu_active:
         global CLR_ACTIVE, CLR_CHECK, CLR_BLACK, CLR_WHITE, STYLE_NUM
         item = canvas_field.find_closest(event.x, event.y)
         tags = canvas_field.itemcget(item, "tags")
+        if "resume" in tags:
+            is_menu_active = False
+            is_pause = False
+            Chessboard(canvas_field, new_game)
         if "new_game" in tags:
             is_menu_active = False
             is_game_starts = True
             new_game = Game()
             new_game.start()
-            Chessboard(new_game, canvas_field)
+            Chessboard(canvas_field, new_game)
         if "settings" in tags:
             is_settings_active = True
             item = canvas_field.find_closest(event.x, event.y)
@@ -289,11 +297,11 @@ def callback(event):
 
             if 'ok' in tags:
                 is_settings_active = False
-            Menu(canvas_field)
+            Menu(canvas_field, new_game)
         if "quit" in tags:
             root.quit()
 
-    if is_game_starts:
+    if is_game_starts and not is_menu_active:
         global is_label_shown
         x = int(event.y / FIELD_SIZE * 8)
         y = int(event.x / FIELD_SIZE * 8)
@@ -310,7 +318,7 @@ def callback(event):
             else:
                 new_game.choose_figure(x, y)
             # print(new_game)
-            Chessboard(new_game, canvas_field)
+            Chessboard(canvas_field, new_game)
 
             # If Check / Mate
             if (new_game.checkmate or new_game.stalemate) and not is_label_shown:
@@ -323,10 +331,10 @@ def callback(event):
             if not new_game.check:
                 is_label_shown = False
 
-    # Когда игра закончилась, активировать меню по нажатию, но не на варианты меню
+    # Когда игра закончилась, активировать меню по нажатию
     if not is_game_starts and (new_game.checkmate or new_game.stalemate):
         is_menu_active = True
-        Menu(canvas_field)
+        Menu(canvas_field, new_game)
 
 
 # On mouse move event
@@ -337,11 +345,44 @@ def motion(event):
     tags = canvas_field.itemcget(item, "tags")
     if "menu" in tags or "settings" in tags or "available_move" in tags:
         canvas_field.configure(cursor='hand2')
+        # OverDraw Chosen option
+        if is_menu_active:
+            try:
+                img = PIL.Image.open(f"{IMG_PATH}/{tags.split()[0]}_active.png")
+                photo = PIL.ImageTk.PhotoImage(img.resize((img.size[0] // 2, img.size[1] // 2)))
+                images.append(photo)
+                canvas_field.itemconfig(item, image=photo)
+            except FileNotFoundError:
+                pass
     elif "figure" in tags:
         if new_game.field.cells_list[x][y].figure.is_white == new_game.current_player.is_white:
             canvas_field.configure(cursor='hand2')
     else:
         canvas_field.configure(cursor='arrow')
+        if is_menu_active:
+            Menu(canvas_field, new_game)
+
+
+# In Key Pressed event
+def key_pressed(event):
+    global is_menu_active, is_game_starts, is_settings_active, is_pause
+    if event.keysym == 'Escape' or event.keysym == 'space':
+        # Игра началась, поставить паузу
+        if is_game_starts and not is_menu_active and not new_game.checkmate and not new_game.stalemate:
+            is_menu_active = True
+            is_pause = True
+            Menu(canvas_field, new_game)
+        # Игра началась и находится на паузе, убрать паузу
+        elif is_game_starts and is_menu_active and not new_game.checkmate and not new_game.stalemate:
+            is_settings_active = False
+            is_menu_active = False
+            is_pause = False
+            Chessboard(canvas_field, new_game)
+        # Игра закончилась, активировать меню по нажатию
+        if not is_game_starts and not is_menu_active and (new_game.checkmate or new_game.stalemate):
+            is_menu_active = True
+            is_pause = False
+            Menu(canvas_field, new_game)
 
 
 # Возвращает прозрачный круг / окружность
@@ -369,8 +410,8 @@ def create_oval(*args, **kwargs):
         image = PIL.ImageTk.PhotoImage(image)
         images.append(image)  # prevent the Image from being garbage-collected
         image_item = canvas_field.create_image(args[0] - STEP_SIZE * 0.3,
-                                         args[1] - STEP_SIZE * 0.3,
-                                         image=image, anchor="nw", tags="available_move")
+                                               args[1] - STEP_SIZE * 0.3,
+                                               image=image, anchor="nw", tags="available_move")
         canvas_field.tag_raise(image_item)
         return image_item
     return canvas_field.create_oval(*args, **kwargs)
@@ -439,13 +480,15 @@ def create_round_rectangle(c, x1, y1, x2, y2, feather, res=5, color='black', tag
 
 
 new_game = Game()
+new_game.start()
 
 root = Tk()
 canvas_field = Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg='white', borderwidth=0)
-canvas_field.bind("<Button-1>", callback)
-canvas_field.bind('<Motion>', motion)
+root.bind("<Button-1>", callback)
+root.bind('<Motion>', motion)
+root.bind('<Key>', key_pressed)
 canvas_field.pack()
 
-Menu(canvas_field)
+new_menu = Menu(canvas_field, new_game)
 
 root.mainloop()
