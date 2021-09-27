@@ -22,5 +22,5 @@ class Player:
             self.score += 5
         elif figure_name == "queen":    # ферзь
             self.score += 9
-        elif figure_name == "king":    # король
+        elif figure_name == "king":     # король
             self.score += 10

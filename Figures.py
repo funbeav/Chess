@@ -15,7 +15,7 @@ class Figure:
         self.y = y
         self.is_white = is_white
         self.game = game
-        self.name = None
+        self.name = ''
         self.steps_count = 0
 
     def __str__(self):
@@ -33,7 +33,7 @@ class Figure:
         available_cells = []
         # Если произошёл Шах, доступны лишь те ходы, которые избавят от Шаха
         for old_cell in old_cells:
-            # Создаём копию игры, в которой проверяем, "спасут" ли ходы от шаха
+            # Создаём копию игры, в которой проверяем, приведёт ли ход к очередному шаху (угрозе короля)
             var_game = deepcopy(self.game)
             # Перенос фигуры в тестовой игре
             var_game.field.cells_list[old_cell[0]][old_cell[1]].figure = var_game.chosen_figure
@@ -93,9 +93,6 @@ class Pawn(Figure):
     def __init__(self, x, y, is_white, game):
         super().__init__(x, y, is_white, game)
         self.name = "pawn"
-
-    def __str__(self):
-        return self.name
 
     # Доступные ячейки для перемещения
     def get_available_cells(self):
@@ -168,9 +165,6 @@ class Castle(Figure):
         super().__init__(x, y, is_white, game)
         self.name = "castle"
 
-    def __str__(self):
-        return self.name
-
     def get_available_cells(self):
         side_operations = [
             (self.x, "==", self.x, self.y, "<", 7, 0, 1),  # Ячейки справа
@@ -188,9 +182,6 @@ class Bishop(Figure):
         super().__init__(x, y, is_white, game)
         self.name = "bishop"
 
-    def __str__(self):
-        return self.name
-
     def get_available_cells(self):
         side_operations = [
             (self.x, ">", 0, self.y, "<", 7, -1, 1),  # Справа сверху
@@ -207,9 +198,6 @@ class Knight(Figure):
     def __init__(self, x, y, is_white, game):
         super().__init__(x, y, is_white, game)
         self.name = "knight"
-
-    def __str__(self):
-        return self.name
 
     def get_available_cells(self):
         available_cells = []
@@ -243,9 +231,6 @@ class Queen(Figure):
         super().__init__(x, y, is_white, game)
         self.name = "queen"
 
-    def __str__(self):
-        return self.name
-
     def get_available_cells(self):
         side_operations = [
             (self.x, "==", self.x, self.y, "<", 7, 0, 1),  # Ячейки справа
@@ -266,9 +251,6 @@ class King(Figure):
     def __init__(self, x, y, is_white, game):
         super().__init__(x, y, is_white, game)
         self.name = "king"
-
-    def __str__(self):
-        return self.name
 
     def get_available_cells(self):
         available_cells = []
@@ -306,13 +288,16 @@ class King(Figure):
                             # Между ними отсуствуют фигуры
                             is_castling = True
                             y = self.y
+                            # Если на пути между Ладьёй и Королём фигуры - запрет рокировки
                             while op_func(y, y_castle - y_adder):
                                 y += y_adder
-                                # Если на пути между Ладьёй и Королём фигуры, либо клетка под боем - запрет рокировки
-                                if cells_list[self.x][y].figure or \
-                                   cells_list[self.x][y].is_under_attack(self.is_white):
+                                if cells_list[self.x][y].figure:
                                     is_castling = False
                                     break
+                            # Если две клетки, через которые проходит король, под боем - запрет рокировки
+                            if cells_list[self.x][self.y + y_adder].is_under_attack(self.is_white) or \
+                               cells_list[self.x][self.y + 2 * y_adder].is_under_attack(self.is_white):
+                                is_castling = False
                             if is_castling:
                                 available_cells.append([self.x, self.y + 2 * y_adder])
         # Исключить ходы, ведушие к мату

@@ -77,10 +77,7 @@ class Game:
 
     def new_turn(self):
         self.chosen_figure = None
-        if self.current_player.is_white:
-            self.current_player = self.player_black
-        else:
-            self.current_player = self.player_white
+        self.current_player = self.player_black if self.current_player.is_white else self.player_white
 
         self.check = self.is_check()
         mate = self.is_mate()
@@ -108,10 +105,8 @@ class Game:
             figure_instead_of_pawn.steps_count = self.chosen_figure.steps_count
             self.field.cells_list[self.chosen_figure.x][self.chosen_figure.y].figure = figure_instead_of_pawn
             self.pawn_reached_border = False
-
             # New turn
             self.new_turn()
-
         else:
             chosen_cell = self.field.cells_list[x][y]
             # Содержит ли ячейка фигуру
@@ -126,6 +121,7 @@ class Game:
     # Trying to move to coordinates [x, y]
     def move(self, x, y):
         if self.chosen_figure:
+            # Get available cells of chosen figure
             available_cells = self.chosen_figure.get_available_cells()
             if [x, y] in available_cells:
                 move_history_record = (str(self.chosen_figure), "white" if self.chosen_figure.is_white else "black",
@@ -196,11 +192,3 @@ class Game:
             else:
                 self.choose_figure(x, y)
         return False
-
-
-if __name__ == "__main__":
-    new_game = Game()
-    new_game.start()
-    new_game.choose_figure(6, 2)
-    new_game.move(4, 0)
-    print(new_game.field)
