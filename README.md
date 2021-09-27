@@ -1,3 +1,8 @@
 # Chess
-Chess Game on Python
+Chess Game on Python 
+
 GUI - tkinter
+
+![Logo](/images/Icon.png)
+
+
